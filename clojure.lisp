@@ -25,6 +25,7 @@
   (if (< a m) 0 (1+ (div (- a m) m))))
 
 (defun filter (f ls)
+  "Remove-if-not f ls"
   (remove-if-not f ls))
 
 (defun sum (ls)
@@ -106,6 +107,7 @@
   (count-factors-helper n 1 0))
 
 (defun lcm-list (ls res)
+  "Returns raw materials for lcm"
   (let ((a (first ls))
 	(xs (rest ls)))
     (if (null xs)
@@ -135,6 +137,7 @@
 	  (cons (first ls) (take-while fn (rest ls))))))
 
 (defun drop (n col)
+  "Drop n first elements in col"
   (if (= n 0)
       col
       (drop (dec n) (rest col))))
@@ -213,7 +216,7 @@
 				(+ (* 10 res) (first ls))))))
     (colnum-helper ls 0)))
 
-(defun manual-pascal (n)
+(defun pascal (n)
   "Returns the n-th row of pascal triangle"
   (cond ((= n 1) '(1))
 	((= n 2) '(1 1))
@@ -229,10 +232,12 @@
 		 (mph n 2 '(1 1))))))
 
 (defun palin? (n)
+  "Accepts an integer n and returns a list of its digits"
   (let ((tmp (numcol n)))
     (equal tmp (reverse tmp))))
 
 (defun permute (ls)
+  "Returns all possible permutations of ls"
   (if (= 1 (length ls))
       (mapcar 'list ls)
       (loop for i in ls
@@ -240,6 +245,7 @@
 		   collect (cons i rs)))))
 
 (defun combine (ls n)
+  "Takes n combinations of ls"
   (if (= 0 n)
       '(())
       (loop for i in ls
@@ -247,6 +253,41 @@
 	 append (loop for rs in (combine (drop j ls)
 					 (dec n))
 		   collect (cons i rs)))))
+
+(defun iterate (fn i gn)
+  "Returns non-lazy iterate while (gn i) is true"
+  (if (not (funcall gn i))
+      nil
+      (cons i (iterate fn (funcall fn i) gn))))
+
+(defun pfactors (n)
+  "Returns all prime factors of n"
+  (labels ((phelpers (p1 p2 res)
+	     (if (prime? p2)
+		 (cons p2 res)
+		 (if (div? p2 p1)
+		     (phelpers 2 (div p2 p1) (cons p1 res))
+		     (phelpers (next-prime p1) p2 res)))))
+    (reverse (phelpers 2 n nil))))
+
+(defun every? (fn ls)
+  "Returns true if every element in ls satisfies fn"
+  (if (empty? ls)
+      true
+      (if (not (funcall fn (first ls)))
+	  false
+	  (every? fn (rest ls)))))
+
+(defun some? (fn ls)
+  "Returns true if at least one  element in ls satisfies fn"
+  (if (empty? ls)
+      false
+      (if (funcall fn (first ls))
+	  true
+	  (every? fn (rest ls)))))
+
+
+
 
 
 
