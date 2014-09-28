@@ -204,8 +204,8 @@
   (labels ((numcol-helper (n res)
 	     (if (< n 10)
 		 (cons n res)
-		 (numcol-helper (quot n 10) (cons (rem n 10) res))))))
-  (numcol-helper n nil))
+		 (numcol-helper (quot n 10) (cons (rem n 10) res)))))
+    (numcol-helper n nil)))
 
 (defun colnum (ls)
   "Construct a number based on digits in a list"
@@ -285,6 +285,43 @@
       (if (funcall fn (first ls))
 	  true
 	  (every? fn (rest ls)))))
+
+(defun partial (fn &rest args)
+  "Returns a curried version of fn"
+  (lambda (&rest xs) (apply fn (append args xs))))
+
+(defun cmap-helper (fn res args)
+  (if (some? 'empty? args)
+      res
+      (cmap-helper fn
+		   (cons (apply fn (mapcar 'first args)) res)
+		   (mapcar 'rest args))))
+
+(defun cmap (fn &rest args)
+  "Clojure's map behaviour"
+  (if (= 1 (length args))
+      (mapcar fn (first args))
+      (reverse (cmap-helper fn nil args))))
+
+(defun comp-helper (ls)
+  (if (= 1 (length ls))
+      (lambda (x) (funcall (first ls) x))
+      (lambda (x) (funcall (comp-helper (rest ls))
+		      (funcall (first ls) x)))))
+
+(defun comp (&rest args)
+  "Clojure's comp with standard clisp behaviour (you need to call it with funcall)"
+  (comp-helper (reverse args)))
+
+(defun juxt-helper (ls x)
+  (if (empty? ls)
+      nil
+      (cons (funcall (first ls) x)
+	    (juxt-helper (rest ls) x))))
+
+(defun juxt (&rest ls)
+  "Clojure's juxt with clisp behaviour"
+  (lambda (x) (juxt-helper ls x)))
 
 
 
