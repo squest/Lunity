@@ -45,7 +45,8 @@
 
 (defun psqr? (n)
   (multiple-value-bind (x y) (truncate (sqrt n))
-    (zerop y)))
+    (progn (evenp x)
+	   (zerop y))))
 
 (defun sqr (x) (* x x))
 
@@ -75,54 +76,6 @@
   (cond ((<= p 20) (if (member p '(2 3 5 7 11 13 17 19)) t nil))
 	((evenp p) nil)
 	(t (prime-helper p 3))))
-
-(defun factors-helper (n i res)
-  (cond ((> (* i i) n)
-	 res)
-	((zerop (rem n i))
-	 (factors-helper n
-			 (1+ i)
-			 (if (= i (quot n i))
-			     (cons i res)
-			     (cons i (cons (/ n i) res)))))
-	(t (factors-helper n (1+ i) res))))
-
-(defun factors (n)
-  "Returns the positive integer factors of n"
-  (factors-helper n 1 '()))
-
-(defun sum-factors (n)
-  "Returns the sum of n positive integer factors"
-  (- (sum (factors n)) n))
-
-(defun count-factors-helper (n i res)
-  (cond ((> (* i i) n)
-	 res)
-	((zerop (rem n i))
-	 (factors-helper n
-			 (1+ i)
-			 (if (= i (quot n i))
-			     (inc res)
-			     (+ 2 res))))
-	(t (factors-helper n (1+ i) res))))
-
-(defun count-factors (n)
-  "Returns the number of positive integer factors of n"
-  (count-factors-helper n 1 0))
-
-(defun lcm-list (ls res)
-  "Returns raw materials for lcm"
-  (let ((a (first ls))
-	(xs (rest ls)))
-    (if (null xs)
-	(cons a res)
-	(if (some #'(lambda (x) (zerop (rem x a))) xs)
-	    (lcm-list (mapcar #'(lambda (x) (if (zerop (rem x a))
-					   (/ x a)
-					   x))
-			      xs)
-		      (if (prime? a) (cons a res) res))
-	    (lcm-list xs (cons a res))))))
 
 (defun take (n ls)
   "Returns a list containing n first elements of ls"
@@ -155,6 +108,79 @@
       (if (funcall fn (first ls))
 	  (drop-while fn (rest ls))
 	  ls)))
+
+(defun factors-helper (n i res)
+  (cond ((> (* i i) n)
+	 res)
+	((zerop (rem n i))
+	 (factors-helper n
+			 (1+ i)
+			 (if (= i (quot n i))
+			     (cons i res)
+			     (cons i (cons (/ n i) res)))))
+	(t (factors-helper n (1+ i) res))))
+
+(defun factors-help (n i res)
+  (cond ((> (* i i) n)
+	 res)
+	((zerop (rem n i))
+	 (factors-help n
+		       (1+ i)
+		       (if (= i (quot n i))
+			   (let* ((lres (length res)))
+			     (append (subseq res 0 (/ lres 2))
+				     (cons i (subseq res (/ lres 2)))))
+			   (let* ((lres (length res)))
+			     (append (subseq res 0 (/ lres 2))
+				     (append (list i (/ n i)) (subseq res (/ lres 2))))))))
+	(t (factors-help n (1+ i) res))))
+
+(defun factors (n)
+  "Returns the positive integer factors of n"
+  (factors-helper n 1 '()))
+
+(defun sorted-factors (n)
+  "Returns the positive integer factors of n"
+  (sort (factors-helper n 1 '()) '<))
+
+
+
+(defun sum-factors (n)
+  "Returns the sum of n positive integer factors"
+  (- (sum (factors n)) n))
+
+
+
+(defun count-factors-helper (n i res)
+  (cond ((> (* i i) n)
+	 res)
+	((zerop (rem n i))
+	 (factors-helper n
+			 (1+ i)
+			 (if (= i (quot n i))
+			     (inc res)
+			     (+ 2 res))))
+	(t (factors-helper n (1+ i) res))))
+
+(defun count-factors (n)
+  "Returns the number of positive integer factors of n"
+  (count-factors-helper n 1 0))
+
+(defun lcm-list (ls res)
+  "Returns raw materials for lcm"
+  (let ((a (first ls))
+	(xs (rest ls)))
+    (if (null xs)
+	(cons a res)
+	(if (some #'(lambda (x) (zerop (rem x a))) xs)
+	    (lcm-list (mapcar #'(lambda (x) (if (zerop (rem x a))
+					   (/ x a)
+					   x))
+			      xs)
+		      (if (prime? a) (cons a res) res))
+	    (lcm-list xs (cons a res))))))
+
+
 
 (defun next-prime (x)
   "Returns the next positive prime number larger than x"
@@ -335,7 +361,13 @@
   "Clojure's juxt with clisp behaviour"
   (lambda (x) (juxt-helper ls x)))
 
-
+(defun spit (fname obj)
+  "Clojure spit to file behaviour"
+  (with-open-file (outfile fname
+			   :direction :output
+			   :if-exists :supersede
+			   :if-does-not-exist :create)
+    (prin1 obj outfile)))
 
 
 
