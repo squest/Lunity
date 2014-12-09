@@ -1,10 +1,143 @@
 ;; This is an attempt to make some of clojure functions runs on SBCL
 
+;; Basic rules: if the name of a macro/function does not exist in
+;; standard CL then it will be used. If such symbol already used in CL
+;; vocab, then we'll use a prefix c... for example:
+
+;; range doesnt exist in CL therefore we use range however let already
+;; exists in CL therefore we use clet. if you're not sure, then you
+;; can simply use c prefix for all clojure built-in macros and
+;; functions, and you're good to go.
+
+
 (defconstant true t)
 (defconstant false nil)
 
-(defun inc (x) (+ 1 x))
-(defun dec (x) (- x 1))
+(defun clojure-vector-char (stream char)
+  `',(read-delimited-list #\] stream t))
+
+(set-macro-character #\[ #'clojure-vector-char)
+(set-macro-character #\] (get-macro-character #\)))
+
+(defmacro defn (fname fbind fbody)
+  `(defun ,fname ,(list @fbind)
+     (declare (optimize (speed 3)))
+     ,fbody))
+
+(defmacro deff (&rest ftypes)
+  (declare (optimize (speed 3))
+	   `(fixnum @ftypes)))
+
+(defmacro fn (body)
+  `(lambda (%) ,body))
+
+(defun cmap (f lst)
+  (mapcar f lst))
+
+(defun inc (x) (1+ x))
+(defun dec (x) (1- x))
+
+(defun div (a m)
+  (truncate (/ a m)))
+
+(defun range (&rest args)
+  (deff)
+  (cond ((= 1 (length args))
+	 (loop for i from 0 to (first args) collect i))
+	((= 2 (length args))
+	 (loop for i from (first args) to (second args) collect i))
+	((= 3 (length args))
+	 (let ((a (first args))
+	       (b (second args)))
+	   (if (<= a b)
+	       (loop for i from a to b by (third args) collect i)
+	       (loop for i from a downto b by (third args) collect i))))))
+
+(defmacro ->> (&body body)
+  (labels ((looper (ls res)
+	      (if (null ls)
+		  res
+		  (looper (rest ls)
+		     (append (first ls) (list res))))))
+    (looper (rest body) (first body))))
+
+(defmacro -> (&body body)
+  (labels ((looper (ls res)
+	      (if (null ls)
+		  res
+		  (looper (rest ls)
+		     (append (list (first (first ls)))
+			     (list res)
+			     (rest (first ls)))))))
+    (looper (rest body) (first body))))
+
+(defun hd (lst)
+  (first lst))
+
+(defun clast (lst)
+  (car (last lst)))
+
+(defun take (n xs)
+  (deff n)
+  (labels ((looper (i lxs res)
+	      (deff i)
+	      (if (or (null lxs) (> i n))
+		  res
+		  (looper (inc i)
+		     (rest lxs)
+		     (append res (list (first lxs)))))))
+    (looper 1 xs nil)))
+
+(defun drop (n xs)
+  (deff n)
+  (if (= 0 n)
+      xs
+      (drop (dec n) (rest xs))))
+
+(defun take-odd (xs)
+  (deff)
+  (labels ((looper (ls res)
+	      (deff)
+	      (if (null ls)
+		  res
+		  (looper (rest (rest ls))
+		     (cons (first ls) res)))))
+    (looper (rest (reverse xs)) nil)))
+
+(defun take-even (xs)
+  (deff)
+  (labels ((looper (ls res)
+	      (deff)
+	      (if (or (= 1 (length ls)) (null ls))
+		  res
+		  (looper (rest (rest ls))
+		     (cons (first ls) res)))))
+    (looper (reverse xs) nil)))
+
+(defmacro cloop (lbinding ldef lbody)
+  `(labels ((recur ,(take-odd lbinding) ,ldef
+		   ,lbody))
+     ,(cons 'recur (take-even lbinding))))
+
+(defun take-while (f lst)
+  (cloop (lxs lst res nil) (deff)
+    (cond ((null lxs) res)
+	  ((not (funcall f (first lxs))) res)
+	  (:else (recur (rest lxs)
+			(append res (list (first lxs))))))))
+
+(defmacro clet (lbinding &body lbody)
+  `(let* ,(mapcar #'(lambda (a b) (list a b))
+		  (take-odd (second lbinding))
+		  (take-even (second lbinding)))
+     ,@lbody))
+
+(defun drop-while (f lst)
+  (if (null lst)
+      '()
+      (if (funcall f (first lst))
+	  (drop-while f (rest lst))
+	  lst)))
 
 (defun zero? (x) (zerop x))
 
@@ -19,10 +152,6 @@
 (defun quot (a m)
   "Integer division, div"
   (floor (/ a m)))
-
-(defun div (a m)
-  "Integer division"
-  (if (< a m) 0 (1+ (div (- a m) m))))
 
 (defun filter (f ls)
   "Remove-if-not f ls"
@@ -40,75 +169,6 @@
   "Returns true if a is evenly-divisible by m"
   (zerop (rem a m)))
 
-(defun square (x)
-  (* x x))
-
-(defun psqr? (n)
-  (multiple-value-bind (x y) (truncate (sqrt n))
-    (progn (evenp x)
-	   (zerop y))))
-
-(defun sqr (x) (* x x))
-
-(defun cube (x) (* x x x))
-
-(defun range (&rest args)
-  "Clojure range behaviour"
-  (cond ((= 1 (length args))
-	 (let* ((i (first args)))
-	   (loop for x from 0 to (1- i) collect x)))
-	((= 2 (length args))
-	 (let* ((i (first args)) (j (second args)))
-	   (loop for x from i to (1- j) collect x)))
-	((= 3 (length args))
-	 (let* ((i (first args)) (j (second args)) (k (third args)))
-	   (if (>= i j)
-	       (loop for x from i downto (inc j) by (abs k) collect x)
-	       (loop for x from i to (dec j) by k collect x))))))
-
-(defun prime-helper (p i)
-  (cond ((> (* i i) p) t)
-	((zerop (rem p i)) nil)
-	(t (prime-helper p (+ 2 i)))))
-
-(defun prime? (p)
-  "Prime checking function"
-  (cond ((<= p 20) (if (member p '(2 3 5 7 11 13 17 19)) t nil))
-	((evenp p) nil)
-	(t (prime-helper p 3))))
-
-(defun take (n ls)
-  "Returns a list containing n first elements of ls"
-  (if (= n 0)
-      '()
-      (if (empty? ls)
-	  ls
-	  (cons (first ls) (take (dec n) (rest ls))))))
-
-(defun take-while (fn ls)
-  "Returns the elements of ls starting from first while (fn elmt) is true"
-  (if (empty? ls)
-      ls
-      (if (not (funcall fn (first ls)))
-	  nil
-	  (cons (first ls) (take-while fn (rest ls))))))
-
-(defun drop (n col)
-  "Drop n first elements in col"
-  (if (= n 0)
-      col
-      (drop (dec n) (rest col))))
-
-;; Some performance test
-
-(defun drop-while (fn ls)
-  "Returns the elements of ls starting from first while (fn elmt) is true"
-  (if (empty? ls)
-      ls
-      (if (funcall fn (first ls))
-	  (drop-while fn (rest ls))
-	  ls)))
-
 (defun factors-helper (n i res)
   (cond ((> (* i i) n)
 	 res)
@@ -119,48 +179,6 @@
 			     (cons i res)
 			     (cons i (cons (/ n i) res)))))
 	(t (factors-helper n (1+ i) res))))
-
-(defun factors-help (n i res)
-  (cond ((> (* i i) n)
-	 res)
-	((zerop (rem n i))
-	 (factors-help n
-		       (1+ i)
-		       (if (= i (quot n i))
-			   (let* ((lres (length res)))
-			     (append (subseq res 0 (/ lres 2))
-				     (cons i (subseq res (/ lres 2)))))
-			   (let* ((lres (length res)))
-			     (append (subseq res 0 (/ lres 2))
-				     (append (list i (/ n i)) (subseq res (/ lres 2))))))))
-	(t (factors-help n (1+ i) res))))
-
-(defun factors (n)
-  "Returns the positive integer factors of n"
-  (factors-helper n 1 '()))
-
-(defun sorted-factors (n)
-  "Returns the positive integer factors of n"
-  (sort (factors-helper n 1 '()) '<))
-
-(defun sum-factors (n)
-  "Returns the sum of n positive integer factors"
-  (- (sum (factors n)) n))
-
-(defun count-factors-helper (n i res)
-  (cond ((> (* i i) n)
-	 res)
-	((zerop (rem n i))
-	 (factors-helper n
-			 (1+ i)
-			 (if (= i (quot n i))
-			     (inc res)
-			     (+ 2 res))))
-	(t (factors-helper n (1+ i) res))))
-
-(defun count-factors (n)
-  "Returns the number of positive integer factors of n"
-  (count-factors-helper n 1 0))
 
 (defun lcm-list (ls res)
   "Returns raw materials for lcm"
@@ -176,105 +194,6 @@
 		      (if (prime? a) (cons a res) res))
 	    (lcm-list xs (cons a res))))))
 
-
-
-(defun next-prime (x)
-  "Returns the next positive prime number larger than x"
-  (cond ((= 2 x) 3)
-	((evenp x) (next-prime (1+ x)))
-	((prime? (+ 2 x)) (+ 2 x))
-	(:else (next-prime (+ 2 x)))))
-
-(defun prev-prime (x)
-  "Returns the next positive prime number less than x"
-  (cond ((<= x 2) nil)
-	((= x 3) 2)
-	((evenp x) (prev-prime (1- x)))
-	((prime? (- x 2)) (- x 2))
-	(:else (prev-prime (- x 2)))))
-
-(defun prime-list-helper (n i cur res)
-  (if (= n i)
-      (cons cur res)
-      (prime-list-helper n (+ 1 i) (next-prime cur) (cons cur res))))
-
-
-(defun prime-list (n)
-  "Returns the n first positive integers"
-  (prime-list-helper n 1 2 '()))
-
-(defun suma-prima (lim)
-  "Returns the sum of all primes less than lim"
-  (labels ((helper (cur res)
-	     (if (>= cur lim)
-		 res
-		 (helper (next-prime cur)
-			 (+ res cur)))))
-    (helper 2 0)))
-
-(defun primes-under (n)
-  "Returns the sum of all primes under n"
-  (loop for i from 2 to n when (prime? i) collect i))
-
-"Elapsed time 3secs for n=100,000"
-
-(defun sum-primes (n)
-  "Returns the sum of n first positive prime numbers"
-  (labels ((sum-primes-helper (n i cur res)
-	     (if (<= n i)
-		 (+ cur res)
-		 (sum-primes-helper n (+ i 1) (next-prime i) (+ res cur)))))
-    (sum-primes-helper n 1 2 0)))
-
-"Elapsed time 1sec for n=100,000"
-
-(defun primes-under-helper (n i res)
-  (if (<= n i)
-      res
-      (primes-under-helper n (next-prime i) (cons i res))))
-
-(defun primes-under-1 (n)
-  "Returns all positive primes less than n"
-  (cond ((<= n 2) '())
-	(:else (reverse (primes-under-helper n 2 nil)))))
-
-(defun numcol (n)
-  "Returns the list of digits in a number n"
-  (labels ((numcol-helper (n res)
-	     (if (< n 10)
-		 (cons n res)
-		 (numcol-helper (quot n 10) (cons (rem n 10) res)))))
-    (numcol-helper n nil)))
-
-(defun colnum (ls)
-  "Construct a number based on digits in a list"
-  (labels ((colnum-helper (ls res)
-	     (if (nil? ls)
-		 res
-		 (colnum-helper (rest ls)
-				(+ (* 10 res) (first ls))))))
-    (colnum-helper ls 0)))
-
-(defun pascal (n)
-  "Returns the n-th row of pascal triangle"
-  (cond ((= n 1) '(1))
-	((= n 2) '(1 1))
-	(:else (labels ((mph (n i res)
-			  (labels ((mpr (res)
-				     (cons 1
-					   (reverse
-					    (cons 1
-						  (mapcar #'(lambda (x y) (+ x y))
-							  res (rest res)))))))
-			    (if (= n i)
-				(mpr res)
-				(mph n (1+ i) (mpr res))))))
-		 (mph n 2 '(1 1))))))
-
-(defun palin? (n)
-  "Accepts an integer n and returns a list of its digits"
-  (let ((tmp (numcol n)))
-    (equal tmp (reverse tmp))))
 
 (defun permute (ls)
   "Returns all possible permutations of ls"
@@ -300,16 +219,6 @@
       nil
       (cons i (iterate fn (funcall fn i) gn))))
 
-(defun pfactors (n)
-  "Returns all prime factors of n"
-  (labels ((phelpers (p1 p2 res)
-	     (if (prime? p2)
-		 (cons p2 res)
-		 (if (div? p2 p1)
-		     (phelpers 2 (div p2 p1) (cons p1 res))
-		     (phelpers (next-prime p1) p2 res)))))
-    (reverse (phelpers 2 n nil))))
-
 (defun every? (fn ls)
   "Returns true if every element in ls satisfies fn"
   (if (empty? ls)
@@ -330,18 +239,7 @@
   "Returns a curried version of fn"
   (lambda (&rest xs) (apply fn (append args xs))))
 
-(defun cmap-helper (fn res args)
-  (if (some? 'empty? args)
-      res
-      (cmap-helper fn
-		   (cons (apply fn (mapcar 'first args)) res)
-		   (mapcar 'rest args))))
 
-(defun cmap (fn &rest args)
-  "Clojure's map behaviour"
-  (if (= 1 (length args))
-      (mapcar fn (first args))
-      (reverse (cmap-helper fn nil args))))
 
 (defun comp-helper (ls)
   (if (= 1 (length ls))
@@ -379,41 +277,8 @@
 		 (helper (rest ls) (append res (list (first ls)))))))
     (helper ls nil)))
 
-;; Dont use it, it's slow
-(defun prima-lista1 (lim)
-  "Returns the positive primes less than lim, lim should be greater than 10"
-  (labels
-      ((helper (prm n res)
-	 (if (> n lim)
-	     res
-	     (if (empty? prm)
-		 (helper (takelim (ceiling (sqrt (+ n 2))) res)
-			 (+ n 2)
-			 (append res (list n)))
-		 (if (div? n (first prm))
-		     (helper (takelim (ceiling (sqrt (+ n 2))) res)
-			     (+ n 2)
-			     res)
-		     (helper (rest prm) n res))))))
-    (cons 2 (helper '(3 5 7) 11 '(3 5 7)))))
 
-;; Dont use it, it's slow
-(defun prima-lista (lim)
-  "Sieves less than lim"
-  (labels
-      ((hprime? (res p)
-	 (if (> (sqr (first res)) p)
-	     true
-	     (if (div? p (first res))
-		 false
-		 (hprime? (rest res) p))))
-       (helper (n res)
-	 (if (> n lim)
-	     res
-	     (if (hprime? res n)
-		 (helper (+ n 2) (append res (list n)))
-		 (helper (+ n 2) res)))))
-    (cons 2 (helper 11 '(3 5 7)))))
+
 
 
 
