@@ -273,6 +273,11 @@
   (deff)
   (lambda (&rest xs) (apply fn (append args xs))))
 
+(defun part (fn &rest args)
+  "Returns a curried version of fn"
+  (deff)
+  (lambda (&rest xs) (apply fn (append args xs))))
+
 (defun comp-helper (ls)
   (deff)
   (if (= 1 (length ls))
