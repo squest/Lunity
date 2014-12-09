@@ -19,20 +19,28 @@
 (set-macro-character #\[ #'clojure-vector-char)
 (set-macro-character #\] (get-macro-character #\)))
 
-(defmacro defn (fname fbind fbody)
+(defmacro defn (fname fbind &rest fbody)
   `(defun ,fname ,(list @fbind)
-     (declare (optimize (speed 3)))
      ,fbody))
 
 (defmacro deff (&rest ftypes)
   (declare (optimize (speed 3))
-	   `(fixnum @ftypes)))
+	   `(fixnum ,@ftypes)))
+
+(defmacro def (vname vbody)
+  `(defparameter ,vname ,vbody))
 
 (defmacro fn (body)
   `(lambda (%) ,body))
 
-(defun cmap (f lst)
-  (mapcar f lst))
+(defmacro fn2 (body)
+  `(lambda (%1 %2) ,body))
+
+(defmacro fn3 (body)
+  `(lambda (%1 %2 %3) ,body))
+
+(defmacro cmap (f &rest lst)
+  `(mapcar ,f ,@lst))
 
 (defun inc (x) (1+ x))
 (defun dec (x) (1- x))
@@ -72,12 +80,33 @@
     (looper (rest body) (first body))))
 
 (defun hd (lst)
+  (deff)
   (first lst))
 
+(defun rev (lst)
+  (deff)
+  (reverse lst))
+
+(defun conj (xs &rest x)
+  (deff)
+  (append xs x))
+
 (defun clast (lst)
+  (deff)
   (car (last lst)))
 
 (defun take (n xs)
+  (deff n)
+  (labels ((looper (i lxs res)
+	      (deff i)
+	      (if (or (null lxs) (> i n))
+		  res
+		  (looper (inc i)
+		     (rest lxs)
+		     (append res (list (first lxs)))))))
+    (looper 1 xs nil)))
+
+(defun ctake (n xs)
   (deff n)
   (labels ((looper (i lxs res)
 	      (deff i)
@@ -93,6 +122,12 @@
   (if (= 0 n)
       xs
       (drop (dec n) (rest xs))))
+
+(defun cdrop (n xs)
+  (deff n)
+  (if (= 0 n)
+      xs
+      (cdrop (dec n) (rest xs))))
 
 (defun take-odd (xs)
   (deff)
@@ -126,10 +161,17 @@
 	  (:else (recur (rest lxs)
 			(append res (list (first lxs))))))))
 
+(defun ctake-while (f lst)
+  (cloop (lxs lst res nil) (deff)
+    (cond ((null lxs) res)
+	  ((not (funcall f (first lxs))) res)
+	  (:else (recur (rest lxs)
+			(append res (list (first lxs))))))))
+
 (defmacro clet (lbinding &body lbody)
-  `(let* ,(mapcar #'(lambda (a b) (list a b))
-		  (take-odd (second lbinding))
-		  (take-even (second lbinding)))
+  `(let* ,(cmap (fn2 (list %1 %2))
+		  (take-odd lbinding)
+		  (take-even lbinding))
      ,@lbody))
 
 (defun drop-while (f lst)
@@ -137,6 +179,13 @@
       '()
       (if (funcall f (first lst))
 	  (drop-while f (rest lst))
+	  lst)))
+
+(defun cdrop-while (f lst)
+  (if (null lst)
+      '()
+      (if (funcall f (first lst))
+	  (cdrop-while f (rest lst))
 	  lst)))
 
 (defun zero? (x) (zerop x))
@@ -151,52 +200,33 @@
 
 (defun quot (a m)
   "Integer division, div"
+  (deff a m)
   (floor (/ a m)))
 
 (defun filter (f ls)
   "Remove-if-not f ls"
+  (deff)
   (remove-if-not f ls))
 
 (defun sum (ls)
   "Returns the sum of all elements in ls"
+  (deff)
   (apply '+ ls))
 
 (defun product (ls)
   "Returns the product of all elements in ls"
+  (deff)
   (apply '* ls))
 
 (defun div? (a m)
   "Returns true if a is evenly-divisible by m"
+  (deff a m)
   (zerop (rem a m)))
-
-(defun factors-helper (n i res)
-  (cond ((> (* i i) n)
-	 res)
-	((zerop (rem n i))
-	 (factors-helper n
-			 (1+ i)
-			 (if (= i (quot n i))
-			     (cons i res)
-			     (cons i (cons (/ n i) res)))))
-	(t (factors-helper n (1+ i) res))))
-
-(defun lcm-list (ls res)
-  "Returns raw materials for lcm"
-  (let ((a (first ls))
-	(xs (rest ls)))
-    (if (null xs)
-	(cons a res)
-	(if (some #'(lambda (x) (zerop (rem x a))) xs)
-	    (lcm-list (mapcar #'(lambda (x) (if (zerop (rem x a))
-					   (/ x a)
-					   x))
-			      xs)
-		      (if (prime? a) (cons a res) res))
-	    (lcm-list xs (cons a res))))))
 
 
 (defun permute (ls)
   "Returns all possible permutations of ls"
+  (deff)
   (if (= 1 (length ls))
       (mapcar 'list ls)
       (loop for i in ls
@@ -205,6 +235,7 @@
 
 (defun combine (ls n)
   "Takes n combinations of ls"
+  (deff n)
   (if (= 0 n)
       '(())
       (loop for i in ls
@@ -221,6 +252,7 @@
 
 (defun every? (fn ls)
   "Returns true if every element in ls satisfies fn"
+  (deff)
   (if (empty? ls)
       true
       (if (not (funcall fn (first ls)))
@@ -229,6 +261,7 @@
 
 (defun some? (fn ls)
   "Returns true if at least one  element in ls satisfies fn"
+  (deff)
   (if (empty? ls)
       false
       (if (funcall fn (first ls))
@@ -237,11 +270,11 @@
 
 (defun partial (fn &rest args)
   "Returns a curried version of fn"
+  (deff)
   (lambda (&rest xs) (apply fn (append args xs))))
 
-
-
 (defun comp-helper (ls)
+  (deff)
   (if (= 1 (length ls))
       (lambda (x) (funcall (first ls) x))
       (lambda (x) (funcall (comp-helper (rest ls))
@@ -249,9 +282,11 @@
 
 (defun comp (&rest args)
   "Clojure's comp with standard clisp behaviour (you need to call it with funcall)"
+  (deff)
   (comp-helper (reverse args)))
 
 (defun juxt-helper (ls x)
+  (deff)
   (if (empty? ls)
       nil
       (cons (funcall (first ls) x)
@@ -259,6 +294,7 @@
 
 (defun juxt (&rest ls)
   "Clojure's juxt with clisp behaviour"
+  (deff)
   (lambda (x) (juxt-helper ls x)))
 
 (defun spit (fname obj)
@@ -269,8 +305,9 @@
 			   :if-does-not-exist :create)
     (prin1 obj outfile)))
 
-(defun takelim (n ls)
+(defun take-lim (n ls)
   "Returns the elements in ls that less than n"
+  (deff)
   (labels ((helper (ls res)
 	     (if (> (first ls) n)
 		 res
