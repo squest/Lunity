@@ -19,13 +19,11 @@
 (set-macro-character #\[ #'clojure-vector-char)
 (set-macro-character #\] (get-macro-character #\)))
 
-(defmacro defn (fname fbind &rest fbody)
-  `(defun ,fname ,(list @fbind)
-     ,fbody))
-
 (defmacro deff (&rest ftypes)
-  (declare (optimize (speed 3))
-	   `(fixnum ,@ftypes)))
+  (if (null ftypes)
+      `(list `declare `(optimize (speed 3)))
+      `(list `declare `(optimize (speed 3))
+	     (cons `fixnum (list ,@ftypes)))))
 
 (defmacro def (vname vbody)
   `(defparameter ,vname ,vbody))
@@ -41,25 +39,6 @@
 
 (defmacro cmap (f &rest lst)
   `(mapcar ,f ,@lst))
-
-(defun inc (x) (1+ x))
-(defun dec (x) (1- x))
-
-(defun div (a m)
-  (truncate (/ a m)))
-
-(defun range (&rest args)
-  (deff)
-  (cond ((= 1 (length args))
-	 (loop for i from 0 to (first args) collect i))
-	((= 2 (length args))
-	 (loop for i from (first args) to (second args) collect i))
-	((= 3 (length args))
-	 (let ((a (first args))
-	       (b (second args)))
-	   (if (<= a b)
-	       (loop for i from a to b by (third args) collect i)
-	       (loop for i from a downto b by (third args) collect i))))))
 
 (defmacro ->> (&body body)
   (labels ((looper (ls res)
@@ -78,56 +57,6 @@
 			     (list res)
 			     (rest (first ls)))))))
     (looper (rest body) (first body))))
-
-(defun hd (lst)
-  (deff)
-  (first lst))
-
-(defun rev (lst)
-  (deff)
-  (reverse lst))
-
-(defun conj (xs &rest x)
-  (deff)
-  (append xs x))
-
-(defun clast (lst)
-  (deff)
-  (car (last lst)))
-
-(defun take (n xs)
-  (deff n)
-  (labels ((looper (i lxs res)
-	      (deff i)
-	      (if (or (null lxs) (> i n))
-		  res
-		  (looper (inc i)
-		     (rest lxs)
-		     (append res (list (first lxs)))))))
-    (looper 1 xs nil)))
-
-(defun ctake (n xs)
-  (deff n)
-  (labels ((looper (i lxs res)
-	      (deff i)
-	      (if (or (null lxs) (> i n))
-		  res
-		  (looper (inc i)
-		     (rest lxs)
-		     (append res (list (first lxs)))))))
-    (looper 1 xs nil)))
-
-(defun drop (n xs)
-  (deff n)
-  (if (= 0 n)
-      xs
-      (drop (dec n) (rest xs))))
-
-(defun cdrop (n xs)
-  (deff n)
-  (if (= 0 n)
-      xs
-      (cdrop (dec n) (rest xs))))
 
 (defun take-odd (xs)
   (deff)
@@ -154,176 +83,195 @@
 		   ,lbody))
      ,(cons 'recur (take-even lbinding))))
 
-(defun take-while (f lst)
-  (cloop (lxs lst res nil) (deff)
-    (cond ((null lxs) res)
-	  ((not (funcall f (first lxs))) res)
-	  (:else (recur (rest lxs)
-			(append res (list (first lxs))))))))
-
-(defun ctake-while (f lst)
-  (cloop (lxs lst res nil) (deff)
-    (cond ((null lxs) res)
-	  ((not (funcall f (first lxs))) res)
-	  (:else (recur (rest lxs)
-			(append res (list (first lxs))))))))
-
 (defmacro clet (lbinding &body lbody)
   `(let* ,(cmap (fn2 (list %1 %2))
-		  (take-odd lbinding)
-		  (take-even lbinding))
+		(take-odd lbinding)
+		(take-even lbinding))
      ,@lbody))
 
-(defun drop-while (f lst)
-  (if (null lst)
-      '()
-      (if (funcall f (first lst))
-	  (drop-while f (rest lst))
-	  lst)))
+(defun inc (x) (1+ x))
 
-(defun cdrop-while (f lst)
-  (if (null lst)
-      '()
-      (if (funcall f (first lst))
-	  (cdrop-while f (rest lst))
-	  lst)))
+(defun dec (x) (1- x))
 
-(defun zero? (x) (zerop x))
-
-(defun true? (x) (equal true x))
-
-(defun false? (x) (not x))
-
-(defun nil? (x) (null x))
-
-(defun empty? (x) (null x))
-
-(defun quot (a m)
-  "Integer division, div"
-  (deff a m)
+(defun div (a m)
   (floor (/ a m)))
 
-(defun filter (f ls)
-  "Remove-if-not f ls"
+(defclass lazy-seq ()
+  ((val :initarg :val)))
+
+(defmacro lseq (thead &rest ttail)
+  `(make-instance 'lazy-seq
+		  :val (cons ,thead (lambda () (list ,@ttail)))))
+
+(defmacro lcons (thead ttail)
+  `(make-instance 'lazy-seq
+		  :val (cons ,thead (lambda () ,ttail))))
+
+(defgeneric empty? (lseq))
+(defgeneric head (lseq))
+(defgeneric tail (lseq))
+(defgeneric rev (lseq))
+(defgeneric clast (lseq))
+
+(defgeneric force (lseq))
+
+(defmethod empty? ((lst lazy-seq))
+  nil)
+
+(defmethod empty? ((lst list))
+  (null lst))
+
+(defmethod head ((lst lazy-seq))
   (deff)
-  (remove-if-not f ls))
+  (first (slot-value lst 'val)))
 
-(defun sum (ls)
-  "Returns the sum of all elements in ls"
+(defmethod head ((lst list))
   (deff)
-  (apply '+ ls))
+  (first lst))
 
-(defun product (ls)
-  "Returns the product of all elements in ls"
+(defmethod tail ((lst lazy-seq))
   (deff)
-  (apply '* ls))
+  (funcall (rest (slot-value lst 'val))))
 
-(defun div? (a m)
-  "Returns true if a is evenly-divisible by m"
-  (deff a m)
-  (zerop (rem a m)))
-
-
-(defun permute (ls)
-  "Returns all possible permutations of ls"
+(defmethod tail ((lst list))
   (deff)
-  (if (= 1 (length ls))
-      (mapcar 'list ls)
-      (loop for i in ls
-	 append (loop for rs in (permute (remove i ls))
-		   collect (cons i rs)))))
+  (rest lst))
 
-(defun combine (ls n)
-  "Takes n combinations of ls"
+(defmethod force ((lst lazy-seq))
+  (deff)
+  (cons (head lst) (tail lst)))
+
+(defmethod rev ((lst lazy-seq))
+  (deff)
+  (reverse (cons (head lst) (tail lst))))
+
+(defmethod rev ((lst list))
+  (deff)
+  (reverse lst))
+
+(defmethod clast ((lst lazy-seq))
+  (deff)
+  (first (last (tail lst))))
+
+(defmethod clast ((lst list))
+  (deff)
+  (first (last lst)))
+
+(defun iterate (f i)
+  (deff)
+  (lcons i (iterate f (funcall f i))))
+
+(defun lrange (&optional start step)
+  (deff start step)
+  (if step
+      (lcons start (lrange (+ start step) step))
+      (if start
+	  (lcons start (lrange (inc start) 1))
+	  (lcons 0 (lrange 1 1)))))
+
+(defun range (&rest args)
+  (deff)
+  (cond ((= 1 (length args))
+	 (loop for i from 0 to (first args) collect i))
+	((= 2 (length args))
+	 (loop for i from (first args) to (second args) collect i))
+	((= 3 (length args))
+	 (let ((a (first args))
+	       (b (second args)))
+	   (if (<= a b)
+	       (loop for i from a to b by (third args) collect i)
+	       (loop for i from a downto b by (third args) collect i))))))
+
+(defun take (n lst)
   (deff n)
-  (if (= 0 n)
-      '(())
-      (loop for i in ls
-	    for j from 1 to (length ls)
-	 append (loop for rs in (combine (drop j ls)
-					 (dec n))
-		   collect (cons i rs)))))
+  (if (or (empty? lst) (= n 0))
+      '()
+      (cons (head lst) (take (dec n) (tail lst)))))
 
-(defun iterate (fn i gn)
-  "Returns non-lazy iterate while (gn i) is true"
-  (if (not (funcall gn i))
+(defun drop (n lst)
+  (deff n)
+  (if (or (empty? lst) (= 0 n))
+      lst
+      (drop (dec n) (tail lst))))
+
+(defmacro if-not (conds ergo alter)
+  `(if ,conds ,alter ,ergo))
+
+(defun lmap (f lst)
+  (deff)
+  (if-not (empty? lst)
+	  (lcons (funcall f (head lst))
+		 (lmap f (tail lst)))
+	  nil))
+
+(defgeneric filter (f lseq))
+
+(defmethod filter (f (lst list))
+  (deff)
+  (remove-if-not 'f lst))
+
+(defmethod filter (f (lst lazy-seq))
+  (deff)
+  (if (funcall f (head lst))
+      (lcons (head lst) (filter f (tail lst)))
+      (filter f (tail lst))))
+
+(defun take-while (f lst)
+  (deff)
+  (if (empty? lst)
       nil
-      (cons i (iterate fn (funcall fn i) gn))))
+      (if (funcall f (head lst))
+	  (cons (head lst) (take-while f (tail lst)))
+	  (take-while f (tail lst)))))
 
-(defun every? (fn ls)
-  "Returns true if every element in ls satisfies fn"
+(defun drop-while (f lst)
   (deff)
-  (if (empty? ls)
-      true
-      (if (not (funcall fn (first ls)))
-	  false
-	  (every? fn (rest ls)))))
-
-(defun some? (fn ls)
-  "Returns true if at least one  element in ls satisfies fn"
-  (deff)
-  (if (empty? ls)
-      false
-      (if (funcall fn (first ls))
-	  true
-	  (every? fn (rest ls)))))
-
-(defun partial (fn &rest args)
-  "Returns a curried version of fn"
-  (deff)
-  (lambda (&rest xs) (apply fn (append args xs))))
-
-(defun part (fn &rest args)
-  "Returns a curried version of fn"
-  (deff)
-  (lambda (&rest xs) (apply fn (append args xs))))
-
-(defun comp-helper (ls)
-  (deff)
-  (if (= 1 (length ls))
-      (lambda (x) (funcall (first ls) x))
-      (lambda (x) (funcall (comp-helper (rest ls))
-		      (funcall (first ls) x)))))
-
-(defun comp (&rest args)
-  "Clojure's comp with standard clisp behaviour (you need to call it with funcall)"
-  (deff)
-  (comp-helper (reverse args)))
-
-(defun juxt-helper (ls x)
-  (deff)
-  (if (empty? ls)
+  (if (empty? lst)
       nil
-      (cons (funcall (first ls) x)
-	    (juxt-helper (rest ls) x))))
+      (if (funcall f (head lst))
+	  (take-while f (tail lst))
+	  (tail lst))))
 
-(defun juxt (&rest ls)
-  "Clojure's juxt with clisp behaviour"
+(defgeneric keep (f lseq))
+
+(defmethod keep (f (lst list))
   (deff)
-  (lambda (x) (juxt-helper ls x)))
+  (if (empty? lst)
+      nil
+      (if (funcall f (head lst))
+	  (cons (funcall f (head lst)) (keep f (tail lst)))
+	  (keep f (tail lst)))))
 
-(defun spit (fname obj)
-  "Clojure spit to file behaviour"
-  (with-open-file (outfile fname
-			   :direction :output
-			   :if-exists :supersede
-			   :if-does-not-exist :create)
-    (prin1 obj outfile)))
-
-(defun take-lim (n ls)
-  "Returns the elements in ls that less than n"
+(defmethod keep (f (lst lazy-seq))
   (deff)
-  (labels ((helper (ls res)
-	     (if (> (first ls) n)
-		 res
-		 (helper (rest ls) (append res (list (first ls)))))))
-    (helper ls nil)))
+  (if (funcall f (head lst))
+      (lcons (funcall f (head lst)) (keep f (tail lst)))
+      (keep f (tail lst))))
 
+(defun div? (a b)
+  (deff a b)
+  (zerop (rem a b)))
 
+(defun prime? (p)
+  (deff p)
+  (cond ((< p 2) false)
+	((= 2 p) true)
+	((evenp p) false)
+	(:else (clet (lim (sqrt p))
+		 (cloop (i 3) (deff i)
+		   (if (> i lim)
+		       true
+		       (if (div? p i)
+			   false
+			   (recur (+ 2 i)))))))))
 
-
-
-
+(defun fold (f g lst)
+  (deff)
+  (cloop (i (head lst) xs (tail lst)) (deff)
+    (if (funcall g i)
+	i
+	(recur (funcall f i (head xs))
+	       (tail xs)))))
 
 
 

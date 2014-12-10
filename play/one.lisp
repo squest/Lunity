@@ -17,10 +17,6 @@
       `(list `declare `(optimize (speed 3))
 	     (cons `fixnum (list ,@ftypes)))))
 
-(defun squares (lim)
-  (deff lim)
-  (mapcar #'(lambda (x) (* x x)) '(1 2 4 5)))
-
 (defmacro def (vname vbody)
   `(defparameter ,vname ,vbody))
 
@@ -36,7 +32,57 @@
 (defmacro cmap (f &rest lst)
   `(mapcar ,f ,@lst))
 
+(defmacro ->> (&body body)
+  (labels ((looper (ls res)
+	      (if (null ls)
+		  res
+		  (looper (rest ls)
+		     (append (first ls) (list res))))))
+    (looper (rest body) (first body))))
+
+(defmacro -> (&body body)
+  (labels ((looper (ls res)
+	      (if (null ls)
+		  res
+		  (looper (rest ls)
+		     (append (list (first (first ls)))
+			     (list res)
+			     (rest (first ls)))))))
+    (looper (rest body) (first body))))
+
+(defun take-odd (xs)
+  (deff)
+  (labels ((looper (ls res)
+	      (deff)
+	      (if (null ls)
+		  res
+		  (looper (rest (rest ls))
+		     (cons (first ls) res)))))
+    (looper (rest (reverse xs)) nil)))
+
+(defun take-even (xs)
+  (deff)
+  (labels ((looper (ls res)
+	      (deff)
+	      (if (or (= 1 (length ls)) (null ls))
+		  res
+		  (looper (rest (rest ls))
+		     (cons (first ls) res)))))
+    (looper (reverse xs) nil)))
+
+(defmacro cloop (lbinding ldef lbody)
+  `(labels ((recur ,(take-odd lbinding) ,ldef
+		   ,lbody))
+     ,(cons 'recur (take-even lbinding))))
+
+(defmacro clet (lbinding &body lbody)
+  `(let* ,(cmap (fn2 (list %1 %2))
+		(take-odd lbinding)
+		(take-even lbinding))
+     ,@lbody))
+
 (defun inc (x) (1+ x))
+
 (defun dec (x) (1- x))
 
 (defun div (a m)
@@ -52,28 +98,34 @@
   `(make-instance 'lazy-seq
 		  :val (cons ,thead (lambda () (list ,@ttail)))))
 
-(defmacro lvec (thead &rest ttail)
-  (let ((tmp (cons thead ttail)))
-    `(make-instance 'lazy-vec
-		    :val (append (lambda () (butlast ,tmp))
-				 (last ,tmp)))))
-
-(defmacro conj (lst a)
-  `(make-instance 'lazy-vec
-		  :val (append (lambda () ,lst)
-			       (list ,a))))
-
 (defgeneric nil? (lseq))
-
 (defgeneric hd (lseq))
 (defgeneric tl (lseq))
 (defgeneric rev (lseq))
 (defgeneric clast (lseq))
 (defgeneric force (lseq))
 
+
 (defmethod hd ((lst lazy-seq))
   (deff)
   (first (slot-value lst 'val)))
+
+(defmethod hd ((lst lazy-vec))
+  (deff)
+  (clet (tmp (funcall (first (slot-value lst 'val))))
+    (if (typep tmp 'lazy-vec)
+	(hd tmp)
+	(first tmp))))
+
+(defmethod force ((lst lazy-vec))
+  (deff)
+  (clet (tmp (funcall (first (slot-value lst 'val))))
+    (if (typep tmp 'lazy-vec)
+	(append (force tmp)
+		(list (second (slot-value lst 'val))))
+	(if (listp tmp)
+	    tmp
+	    (list tmp)))))
 
 (defmethod tl ((lst lazy-seq))
   (deff)
@@ -85,11 +137,16 @@
 
 (defmacro lcons (thead ttail)
   `(make-instance 'lazy-seq
-		  :val (cons ,thead (lambda () (force ,ttail)))))
+		  :val (cons ,thead (lambda () ,ttail))))
 
 (defmethod rev ((lst lazy-seq))
   (deff)
   (reverse (cons (hd lst) (tl lst))))
+
+(defmethod rev ((lst lazy-vec))
+  (deff)
+  (reverse (force lst)))
+
 
 (defmethod clast ((lst lazy-seq))
   (deff)
@@ -98,6 +155,41 @@
 (defmethod clast ((lst lazy-vec))
   (deff)
   (first (last (slot-value lst 'val))))
+
+(defun iterate (f i)
+  (deff)
+  (lcons i (iterate f (funcall f i))))
+
+(defun lrange (&optional start step)
+  (deff start step)
+  (if step
+      (lcons start (lrange (+ start step) step))
+      (if start
+	  (lcons start (lrange (inc start) 1))
+	  (lcons 0 (lrange 1 1)))))
+
+(defun range (&rest args)
+  (deff)
+  (cond ((= 1 (length args))
+	 (loop for i from 0 to (first args) collect i))
+	((= 2 (length args))
+	 (loop for i from (first args) to (second args) collect i))
+	((= 3 (length args))
+	 (let ((a (first args))
+	       (b (second args)))
+	   (if (<= a b)
+	       (loop for i from a to b by (third args) collect i)
+	       (loop for i from a downto b by (third args) collect i))))))
+
+(defun take (n lst)
+  (deff n)
+  (if (= n 0)
+      '()
+      (cons (hd lst) (take (dec n) (tl lst)))))
+
+
+
+
 
 
 
