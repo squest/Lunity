@@ -47,6 +47,19 @@
              #:x-min -10 #:x-max 10
              #:y-min -10 #:y-max 10)]))
 
+(define (looper->> lxs res)
+  (if (null? lxs)
+      res
+      (looper->> (rest lxs) 
+                 (append (first lxs) (list res)))))
+
+(define-syntax (->> stx)
+  (syntax-case stx ()
+    [(->> . lst)
+     #'(foldl (λ (x y) (append y (list x)))
+              (first lst) 
+              (rest lst))]))
+
 (define-syntax (igraf stx)
   (syntax-case stx ()
     [(igraf l1 l2)
@@ -187,10 +200,16 @@
 (define (lc f . num)
   (lambda (x) (apply f (cons x num))))
 
+(define (juxt . lst)
+  (define (looper x lxs res)
+    (if (null? lxs)
+        res
+        (looper x (rest lxs) (cons ((first lxs) x) res))))
+  (lambda (x) (reverse (looper x lst null))))
+
 (define fibolist
   (case-lambda
-    [() (lmap (lambda (x) (list (first x)
-                                (third x)))
+    [() (lmap (juxt first third)
               (iterate 
                (λ (x) (list (+ (first x)
                                (second x))
@@ -198,88 +217,141 @@
                             (inc (third x))))
                (list 1 1 1)))]
     [(i) (ltake i 
-                (lmap (λ (x) (list (first x) 
-                                   (third x)))
+                (lmap (juxt first third)
                       (iterate 
                        (λ (x) (list (+ (first x)
                                        (second x))
                                     (first x)
                                     (inc (third x))))
                        (list 1 1 1))))]))
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+(define (take-while-by f g ls)
+  (define (lver lxs)
+    (if (null? lxs)
+        null
+        (if (f (g (first lxs)))
+            (cons (first lxs) (lver (rest lxs)))
+            lxs)))
+  (define (sver lxs)
+    (if (f (g (head lxs)))
+        (cons (head lxs) (sver ((tail lxs))))
+        null))
+  (if (list? ls)
+      (lver ls)
+      (sver ls)))
+
+(define (drop-while-by f g ls)
+  (define (sver lxs)
+    (if (null? lxs)
+        null
+        (if (f (g (first lxs)))
+            (sver (rest lxs))
+            lxs)))
+  (define (lver lxs)
+    (if (f (g (head lxs)))
+        (lver ((tail lxs)))
+        lxs))
+  (if (list? ls)
+      (sver ls)
+      (lver ls)))
+
+(define (sort-by f lst)
+  (if (null? lst)
+      null
+      (append (sort-by f (filter (λ (x) (>= (f (first lst)) (f x)))
+                                 (rest lst)))
+              (list (first lst))
+              (sort-by f (filter (λ (x) (< (f (first lst)) (f x)))
+                                 (rest lst))))))
+
+
+
+
+
+
+
+
+
+
+
+
+(define (negate f)
+  (λ (x) (not (f x))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

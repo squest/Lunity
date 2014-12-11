@@ -41,22 +41,13 @@
   `(mapcar ,f ,@lst))
 
 (defmacro ->> (&body body)
-  (labels ((looper (ls res)
-	      (if (null ls)
-		  res
-		  (looper (rest ls)
-		     (append (first ls) (list res))))))
-    (looper (rest body) (first body))))
+  (reduce (fn2 (append %2 (list %1))) body))
 
 (defmacro -> (&body body)
-  (labels ((looper (ls res)
-	      (if (null ls)
-		  res
-		  (looper (rest ls)
-		     (append (list (first (first ls)))
-			     (list res)
-			     (rest (first ls)))))))
-    (looper (rest body) (first body))))
+  (reduce (fn2 (append (list (first %2))
+		       (list %1)
+		       (rest %2)))
+	  body))
 
 (defun take-odd (xs)
   (deff)
@@ -247,6 +238,28 @@
   (if (funcall f (head lst))
       (lcons (funcall f (head lst)) (keep f (tail lst)))
       (keep f (tail lst))))
+
+(defun sort-by (f lst)
+  (deff)
+  (sort lst '< :key f))
+
+(defun max-by (f lst)
+  (if (null lst)
+      -99999999999999999999999999999999999999999999999
+      (clet (num (funcall f (first lst))
+		 nres (max-by f (rest lst)))
+	(if (> num nres)
+	    num
+	    nres))))
+
+(defun min-by (f lst)
+  (if (null lst)
+      99999999999999999999999999999999999999999999999
+      (clet (num (funcall f (first lst))
+		 nres (min-by f (rest lst)))
+	(if (< num nres)
+	    num
+	    nres))))
 
 (defun div? (a b)
   (deff a b)
