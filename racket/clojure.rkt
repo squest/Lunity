@@ -79,27 +79,207 @@
   (cons (lazy-seq-hd lxs) 
         (all-tail lxs)))
 
+(define (dec n)
+  (- n 1))
 
+(define (inc n)
+  (+ n 1))
 
+(define (ltake n lxs)
+  (if (= n 0)
+      null
+      (cons (head lxs)
+            (ltake (dec n) ((tail lxs))))))
 
+(define (lrange- start step)
+  (lcons start (lrange- (+ start step) step)))
 
+(define lrange
+  (case-lambda 
+    [() (lrange- 0 1)]
+    [(start) (lrange- start 1)]
+    [(start step) (lrange- start step)]))
 
+(define (geo-seq start step)
+  (lcons start (geo-seq (* start step) step)))
 
+(define (ldrop n lxs)
+  (if (zero? n)
+      lxs
+      (if (null? lxs)
+          null
+          (if (list? lxs)
+              (drop lxs n)
+              (ldrop (dec n)
+                     ((tail lxs)))))))
 
+(define (iterate f i)
+  (lcons i (iterate f (f i))))
 
+(define (take-while f lxs)
+  (define (ltake-while lxs)
+    (let ([tmp (head lxs)])
+      (if (f tmp)
+          (cons tmp (ltake-while ((tail lxs))))
+          null)))
+  (define (stake-while lxs)
+    (if (null? lxs)
+        null
+        (let ([tmp (first lxs)])
+          (if (f tmp)
+              (cons tmp (stake-while (rest lxs)))
+              null))))
+  (if (list? lxs)
+      (stake-while lxs)
+      (ltake-while lxs)))
 
+(define (drop-while f lxs)
+  (define (ldrop-while lxs)
+    (if (f (head lxs))
+        (ldrop-while ((tail lxs)))
+        lxs))
+  (define (sdrop-while lxs)
+    (if (null? lxs)
+        null
+        (if (f (first lxs))
+            (sdrop-while (rest lxs))
+            lxs)))
+  (if (lazy-seq? lxs)
+      (ldrop-while lxs)
+      (sdrop-while lxs)))
 
+(define (lmap f lxs)
+  (lcons (f (head lxs)) (lmap f ((tail lxs)))))
 
+(define (lfilter f lxs)
+  (if (f (head lxs))
+      (cons (head lxs) (lfilter f ((tail lxs))))
+      (lfilter f ((tail lxs)))))
 
+(define (keep f lxs)
+  (define (lkeep lxs)
+    (let ([tmp (f (head lxs))])
+      (if tmp
+          (lcons tmp (lkeep ((tail lxs))))
+          (let ([tmp (drop-while (λ (x) (not (f x))) lxs)])
+            (lcons (head tmp) (lkeep ((tail tmp))))))))
+  (define (skeep lxs)
+    (if (null? lxs)
+        null
+        (let ([tmp (f (first lxs))])
+          (if tmp 
+              (cons tmp (skeep (rest lxs)))
+              (skeep (rest lxs))))))
+  (if (lazy-seq? lxs)
+      (lkeep lxs)
+      (skeep lxs)))
 
+(define (comp . funs)
+  (define (looper x lst)
+    (if (= 1 (length lst))
+        ((first lst) x)
+        (looper ((first lst) x) (rest lst))))
+  (lambda (x) (looper x (reverse funs))))
 
+(define (rc f . num)
+  (lambda (x) (apply f (reverse (cons x (reverse num))))))
 
+(define (lc f . num)
+  (lambda (x) (apply f (cons x num))))
 
-
-
-
-
-
-
-
-
+(define fibolist
+  (case-lambda
+    [() (lmap (lambda (x) (list (first x)
+                                (third x)))
+              (iterate 
+               (λ (x) (list (+ (first x)
+                               (second x))
+                            (first x)
+                            (inc (third x))))
+               (list 1 1 1)))]
+    [(i) (ltake i 
+                (lmap (λ (x) (list (first x) 
+                                   (third x)))
+                      (iterate 
+                       (λ (x) (list (+ (first x)
+                                       (second x))
+                                    (first x)
+                                    (inc (third x))))
+                       (list 1 1 1))))]))
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
