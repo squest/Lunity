@@ -273,5 +273,24 @@
 	(recur (funcall f i (head xs))
 	       (tail xs)))))
 
+(defun flatten (lst)
+  (deff)
+  (if (empty? lst)
+      nil
+      (clet (flst (first lst))
+	(if (listp flst)
+	    (append (flatten (tail lst))
+		    (flatten flst))
+	    (cons flst (flatten (tail lst)))))))
+
+(defun distinct (lst)
+  (deff)
+  (remove-duplicates lst))
+
+
+
+
+
+
 
 
