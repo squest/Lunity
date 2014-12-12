@@ -1,11 +1,11 @@
 Lunity
 ======
 
-Stupid attempt to make Clojure/Haskell functions available in Common Lisp
+Stupid attempt to make Clojure/Haskell functions available in Common Lisp & Racket
 
 ### Usage
 
-simply (load "clojure.lisp") and/or (load "haskell.lisp")
+simply (load "clojure.lisp") or (require clojure) for racket.
 
 ### Rationale
 
@@ -14,44 +14,56 @@ I want to code in CL but added with some modern features, hence this repo.
 Not so much an implementation of both languages on CL, simply made the superficial attempt  
 so that I can call things like range, iterate, comp, juxt, etc.
 
-Also, I added some common mathematical functions.
+Important features added including lazy seq class & basic memoization.
 
-### Here are the list of functions that already implemented:
+Also created the racket version
 
-1. range
-2. iterate (not lazy, but with predicate function to stop)
-3. sum
-4. product
-5. permutations
-6. combinations
-7. prime?
-8. primes-under
-9. take
-10. drop
-11. take-while
-12. drop-while
-13. juxt
-14. comp
-15. partial
-16. clojure map -> cmap
-17. spit
-18. some?
-19. every?
-20. palin?
-21. pascal
-22. numcol
-23. colnum
-24. sum-primes
-25. prime-list
-26. fibo-list
-27. fibo
-28. next-prime
-29. lcm-list
-30. factors
-31. sum-factors
-32. count-factors
-33. sorted-factors
-34. psqr?
-35. filter
-36. next-prime
-37. prev-prime
+### Here are the list of functions that already implemented in CL:
+
+1. -> & ->> macro
+2. strict range
+3. lazy range => lrange no upper limit
+4. take => works for both lazy and strict
+5. drop => works for strict list
+6. lazy cons => lcons
+7. geo-seq like lrange but for creating a geometric sequence
+8. take-while
+9. drop-while
+10. iterate
+11. dec and inc
+12. div and rem
+13. sort-by (non destructive using quicksort)
+14. loop recur (CL already have TCO, but I like this loop recur style)
+15. clojure's let syntax and behaviour
+16. comp
+17. juxt
+18. partial
+19. lreduce (lazy reduce with an extra predicate to check when to stop)
+20. function literal macro using fn instead of #(* % %) you can write (fn (* % %)) or (fn2 (* %1 %2))
+21. lmap (lazy map)
+22. filter (lazy version of CL's remove-if-not)
+23. distinct
+24. flatten
+25. lmapcat
+26. Clojure's [] literal for vector
+27. clojure's last behaviour
+
+Short-term todo list:
+
+1. lnth => lazy nth
+2. concat
+3. any? (strict and lazy)
+4. some? (strict and lazy)
+5. every?
+6. repeat (lazy & strict)
+7. cycle (lazy)
+8. for
+
+medium-term todo list:
+
+1. literal for hash-map
+2. all hash-map functions
+3. Clojure's set wont be implemented as CL can treat list as set
+4. pmap
+5. clojure's state management using atom, refs, and agents.
+6. So far, no plan (before I acquire the required skills) to create a generic sequence abstractions nor clojure's vector (tree style)
