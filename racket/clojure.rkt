@@ -47,18 +47,8 @@
              #:x-min -10 #:x-max 10
              #:y-min -10 #:y-max 10)]))
 
-(define (looper->> lxs res)
-  (if (null? lxs)
-      res
-      (looper->> (rest lxs) 
-                 (append (first lxs) (list res)))))
-
-(define-syntax (->> stx)
-  (syntax-case stx ()
-    [(->> . lst)
-     #'(foldl (λ (x y) (append y (list x)))
-              (first lst) 
-              (rest lst))]))
+(define (distinct ls)
+  (remove-duplicates ls))
 
 (define-syntax (igraf stx)
   (syntax-case stx ()
@@ -264,14 +254,22 @@
               (sort-by f (filter (λ (x) (< (f (first lst)) (f x)))
                                  (rest lst))))))
 
+(define reduce 
+  (case-lambda 
+    [(f lst) (foldl f (first lst) (rest lst))]
+    [(f elmt lst) (foldl f elmt lst)]))
 
-
-
-
-
-
-
-
+(define lreduce 
+  (case-lambda 
+    [(f g lst) (lreduce f g (head lst) ((tail lst)))]
+    [(f g elmt lst)
+     (letrec ([looper 
+               (lambda (res lxs)
+                 (if (g res)
+                     res
+                     (looper (f res (head lxs))
+                             ((tail lxs)))))])
+       (looper elmt lst))]))
 
 
 

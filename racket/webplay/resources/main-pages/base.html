@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Racket Web app</title>
+	<link rel="stylesheet" href="http://localhost:8000/resources/main-pages/ext-css/foundation.min.css"/>
+	<!-- external JS -->
+	<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/foundation/5.2.2/css/normalize.css">
+	<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/foundation/5.2.2/css/foundation.min.css">
+	<!-- MathJax setting -->
+	<script type="text/javascript">
+		window.MathJax = {
+			tex2jax: {
+				inlineMath: [['$', '$'], ["\\(", "\\)"]],
+				processEscapes: false
+			}
+		};
+	</script>
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML">
+	</script>
+</head>
+<body class="row">
+<div class="large-12 columns zpanel2">
+	<h3>
+		Welcome to our first racket web app, brother @name !
+	</h3>
+</div>
+<hr/>
+<h4>
+	<center>
+		$$ \lim\limits_{x->\infty} { {@(x)^3 + sin^3 \space @x} \over {tan^3 \space @x} } $$
+	</center>
+</h4>
+<hr/>
+<p>
+	Copyright &copy; 2014 PT Zenius Education partnered by Jojon and associates.
+</p>
+</body>
+</html>
